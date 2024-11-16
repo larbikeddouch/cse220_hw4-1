@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 
 #define PORT1 2201
-#define PORT2 2202
+#define PORT2 2202 
 #define BUFFER_SIZE 1024
 
 void getInput(char* prompt, char* buffer) {
