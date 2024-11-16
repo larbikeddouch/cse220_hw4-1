@@ -459,16 +459,19 @@ int initialize(Board *board, char* buffer, int width, int height) {
 int shoot(Board *board, int row, int column) {
     //Hit
     if (board->grid[row][column] == 1) {
-        board->grid[row][column] = 1;
-        return 1;
+        board->grid[row][column] = 100;
+        return 100;
     }
     //Miss
-    if (board->grid[row][column] == 0) {
-        board->grid[row][column] = 0;
-        return 0;
+    else if (board->grid[row][column] == 0) {
+        board->grid[row][column] = 200;
+        return 200;
     }
-    //Already Guessed
-    if (board->grid[row][column == 2])
+    //Already Guessed Cell
+    else if (board->grid[row][column] == 100 || board->grid[row][column] == 200) {
+        board->grid[row][column] = 300;
+        return 300;
+    }
 }
 
 //Ships Left
