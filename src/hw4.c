@@ -453,13 +453,36 @@ int initialize(Board *board, char* buffer, int width, int height) {
                 }
         }
     }
-    
-    //switch statement (nested) one for Shape and one for Rotation
-    //check if piece overlaps
-
 }
 
 //Shoot
+int shoot(Board *board, int row, int column) {
+    //Hit
+    if (board->grid[row][column] == 1) {
+        board->grid[row][column] = 1;
+        return 1;
+    }
+    //Miss
+    if (board->grid[row][column] == 0) {
+        board->grid[row][column] = 0;
+        return 0;
+    }
+    //Already Guessed
+    if (board->grid[row][column == 2])
+}
+
+//Ships Left
+int ships_left (Board *board, int width, int height) {
+    int ships = 0;
+    for (int i = 0; i < board->width; i++) {
+        for (int j = 0; j < board->height; j++) {
+            if(board->grid[i][j] == 1) {
+                ships++;
+            }
+        }
+    }
+}
+
 //Query
 //Forfeit
 //Error
