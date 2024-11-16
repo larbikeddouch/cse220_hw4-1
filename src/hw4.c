@@ -15,27 +15,25 @@ typedef struct {
     int width;
     int height;
     char **grid;
-    int ship_count;
 } Board;
 
-typedef struct {
-    int id;
-    int ships_remaining;
-    Board board;
-} Player;
+// typedef struct {
+//     int id;
+//     int ships_remaining;
+//     Board board;
+// } Player;
 
-typedef struct {
-    int type;
-    int rotation;
-    int column;
-    int row;
-} Piece;
+// typedef struct {
+//     int type;
+//     int rotation;
+//     int column;
+//     int row;
+// } Piece;
 
 Board *create_board(int width, int height) {
     Board *board = (Board*)malloc(sizeof(Board));
     board->width = width;
     board->height = height;
-    board->ship_count = 0;
 
     board->grid= (char**)malloc(height * sizeof(char*));
     for (int i = 0; i < height; i++) {
@@ -479,14 +477,13 @@ int ships_left (Board *board, int width, int height) {
     int ships = 0;
     for (int i = 0; i < board->width; i++) {
         for (int j = 0; j < board->height; j++) {
-            if(board->grid[i][j] == 1) {
-                ships++;
-            }
+            if(board->grid[i][j] == 1) {ships++;}
         }
     }
 }
 
 //Query
+
 //Forfeit
 //Error
 //Halt
@@ -494,10 +491,12 @@ int ships_left (Board *board, int width, int height) {
 
 int main() {
     int p1_listen_fd, p1_conn_fd, p2_listen_fd, p2_conn_fd;
-    struct sockaddr_in address;
+    struct sockaddr_in p1_address, p2_address;
+    int p1_addrlen = sizeof(p1_address);
+    int p2_addrlen = sizeof(p2_address);
+    char p1_buffer[BUFFER_SIZE] = {0};
+    char p2_buffer[BUFFER_SIZE] = {0};
     int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[BUFFER_SIZE] = {0};
 
     Board *game_board = NULL;
 
@@ -507,32 +506,19 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    // Create socket for Player 2
+    if ((p2_listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed for Player 2");
+        exit(EXIT_FAILURE);
+    }
+
     // Set socket options for Player 1
     if (setsockopt(p1_listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
         perror("setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))");
         exit(EXIT_FAILURE);
     }
-
-    // Bind socket for Player 1
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT1);
-    if (bind(p1_listen_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("[Server] bind() failed for Player 1");
-        exit(EXIT_FAILURE);
-    }
-
-    // Listen for incoming connections for Player 1
-    if (listen(p1_listen_fd, 3) < 0) {
-        perror("[Server] listen() failed for Player 1.");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("[Server] Running on port %d for Player 1\n", PORT1);
-
-    // Create socket for Player 2
-    if ((p2_listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed for Player 2");
+    if (setsockopt(p1_listen_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))");
         exit(EXIT_FAILURE);
     }
 
@@ -541,45 +527,81 @@ int main() {
         perror("setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))");
         exit(EXIT_FAILURE);
     }
+    if (setsockopt(p2_listen_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))) {
+        perror("setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt))");
+        exit(EXIT_FAILURE);
+    }
+
+    // Bind socket for Player 1
+    p1_address.sin_family = AF_INET;
+    p1_address.sin_addr.s_addr = INADDR_ANY;
+    p1_address.sin_port = htons(PORT1);
+    if (bind(p1_listen_fd, (struct sockaddr *)&p1_address, sizeof(p1_address)) < 0) {
+        perror("[Server] bind() failed for Player 1");
+        exit(EXIT_FAILURE);
+    }
 
     // Bind socket for Player 2
-    address.sin_port = htons(PORT2);
-    if (bind(p2_listen_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    p2_address.sin_family = AF_INET;
+    p2_address.sin_addr.s_addr = INADDR_ANY;
+    p2_address.sin_port = htons(PORT2);
+    if (bind(p2_listen_fd, (struct sockaddr *)&p2_address, sizeof(p2_address)) < 0) {
         perror("[Server] bind() failed for Player 2");
         exit(EXIT_FAILURE);
     }
+
+    // Listen for incoming connections for Player 1
+    if (listen(p1_listen_fd, 3) < 0) {
+        perror("[Server] listen() failed for Player 1.");
+        exit(EXIT_FAILURE);
+    }
+    printf("[Server] Running on port %d for Player 1\n", PORT1);
 
     // Listen for incoming connections for Player 2
     if (listen(p2_listen_fd, 3) < 0) {
         perror("[Server] listen() failed for Player 2.");
         exit(EXIT_FAILURE);
     }
-
     printf("[Server] Running on port %d for Player 2\n", PORT2);
 
     // Accept incoming connection for Player 1
-    if ((p1_conn_fd = accept(p1_listen_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+    if ((p1_conn_fd = accept(p1_listen_fd, (struct sockaddr *)&p1_address, (socklen_t *)&p1_addrlen)) < 0) {
         perror("[Server] accept() failed for Player 1.");
         exit(EXIT_FAILURE);
     }
 
     // Accept incoming connection for Player 2
-    if ((p2_conn_fd = accept(p1_listen_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+    if ((p2_conn_fd = accept(p1_listen_fd, (struct sockaddr *)&p2_address, (socklen_t *)&p2_addrlen)) < 0) {
         perror("[Server] accept() failed for Player 2.");
         exit(EXIT_FAILURE);
     }
+    //_____________________________GAME_______________________________________________________________________
 
     //Receive message from Player 1
     while (1) {
-        memset(buffer, 0, BUFFER_SIZE);
-        int nbytes = read(p1_conn_fd, buffer, BUFFER_SIZE);
-        if (nbytes <= 0) {
+        memset(p1_buffer, 0, BUFFER_SIZE);
+        memset(p2_buffer, 0, BUFFER_SIZE);
+        int width, height;
+
+        int p1_nbytes = read(p1_conn_fd, p1_buffer, BUFFER_SIZE);
+        if (p1_nbytes <= 0) {
             perror("[Server] read() failed for Player 1.");
             exit(EXIT_FAILURE);
         }
 
-        int width, height;
-        if (sscanf(buffer, "B, %d %d", width, height) == 2) {
+        //Forfeit
+        if (strcmp(p1_buffer, "F") == 0) {
+            printf("Player 1 Forfeited\n");
+            send(p1_conn_fd, "H 0", 3, 0); //Halt
+            send(p2_conn_fd, "H 1", 3, 0); //Halt
+            close(p1_conn_fd);
+            close(p2_conn_fd);
+            close(p1_listen_fd);
+            close(p2_listen_fd);
+
+        }
+
+        if (sscanf(p1_buffer, "B %d %d", width, height) == 2) {
             game_board = create_board(width, height);
             if(!game_board) {
                 perror("Failure to create board");
